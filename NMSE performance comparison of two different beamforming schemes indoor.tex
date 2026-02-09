@@ -1,0 +1,95 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+# --- SCI 论文风格配置 ---
+plt.rcParams.update({
+    'font.family': 'serif',
+    'font.serif': ['Times New Roman'],  # 确保系统安装了该字体，否则会回退到默认衬线体
+    'font.size': 11,                    # 标准论文五号字左右
+    'axes.labelsize': 12,
+    'axes.titlesize': 12,
+    'xtick.labelsize': 10,
+    'ytick.labelsize': 10,
+    'legend.fontsize': 10,
+    'axes.linewidth': 1.2,              # 坐标轴线宽
+    'grid.linewidth': 0.5,
+    'lines.linewidth': 1.5,
+    'lines.markersize': 7,
+    'figure.figsize': (7, 5.5),         # 适合单栏排版的比例
+    'figure.dpi': 300,                  # 高分辨率
+    'savefig.dpi': 300,
+    'savefig.format': 'pdf',            # 默认保存为矢量图 PDF
+    'mathtext.fontset': 'stix',         # 使数学公式接近 Times
+})
+
+# --- 数据准备 (与最新 Web 版一致) ---
+M = [256, 512, 1024]
+
+# sigma^2 = 0.1
+ideal_01 = [15.82, 15.82, 15.82]
+dips_01  = [10.21, 11.53, 12.18]
+dipi_01  = [11.58, 13.62, 14.25]
+
+# sigma^2 = 1.0
+ideal_10 = [12.45, 12.45, 12.45]
+dips_10  = [6.78, 8.24, 8.62]
+dipi_10  = [8.21, 10.58, 11.23]
+
+# sigma^2 = 10.0
+ideal_100 = [9.12, 9.12, 9.12]
+dips_100  = [3.56, 4.92, 5.14]
+dipi_100  = [4.91, 7.23, 7.89]
+
+# --- 绘图 ---
+fig, ax = plt.subplots()
+
+# 颜色与标记定义
+c_ideal = 'black'
+c_dips  = '#004488' # 深蓝
+c_dipi  = '#BB2222' # 深红
+
+# (1) sigma^2 = 0.1: 实线 + 实心标记
+ax.plot(M, ideal_01, color=c_ideal, linestyle='-', marker='o', label='Ideal ($\sigma^2=0.1$)')
+ax.plot(M, dips_01,  color=c_dips,  linestyle='-', marker='s', label='DIP-S ($\sigma^2=0.1$)')
+ax.plot(M, dipi_01,  color=c_dipi,  linestyle='-', marker='^', label='DIP-I ($\sigma^2=0.1$)')
+
+# (2) sigma^2 = 1.0: 虚线 + 空心标记
+ax.plot(M, ideal_10, color=c_ideal, linestyle='--', marker='o', markerfacecolor='white', label='Ideal ($\sigma^2=1.0$)')
+ax.plot(M, dips_10,  color=c_dips,  linestyle='--', marker='s', markerfacecolor='white', label='DIP-S ($\sigma^2=1.0$)')
+ax.plot(M, dipi_10,  color=c_dipi,  linestyle='--', marker='^', markerfacecolor='white', label='DIP-I ($\sigma^2=1.0$)')
+
+# (3) sigma^2 = 10.0: 点线 + 异形标记
+ax.plot(M, ideal_100, color=c_ideal, linestyle=':', marker='D', markersize=5, label='Ideal ($\sigma^2=10$)')
+ax.plot(M, dips_100,  color=c_dips,  linestyle=':', marker='*', markersize=9, label='DIP-S ($\sigma^2=10$)')
+ax.plot(M, dipi_100,  color=c_dipi,  linestyle=':', marker='x', markersize=8, label='DIP-I ($\sigma^2=10$)')
+
+# --- 细节美化 ---
+ax.set_xlabel('Feedback Bits ($M$)')
+ax.set_ylabel('Average Sum Rate (bit/s/Hz)')
+ax.set_title('(a) Indoor Scenario', fontweight='bold', pad=15)
+
+# 设置 X 轴刻度
+ax.set_xticks(M)
+ax.set_xlim(200, 1100)
+ax.set_ylim(2, 18)
+
+# 网格与边框
+ax.grid(True, linestyle='--', alpha=0.4)
+# 强制显示四个边的边框 (Boxed Axes)
+for spine in ax.spines.values():
+    spine.set_visible(True)
+    spine.set_edgecolor('black')
+
+# 图例设置 (分为 3 列排放，避免遮挡曲线)
+ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), 
+          ncol=3, frameon=True, edgecolor='black', fancybox=False)
+
+plt.tight_layout()
+
+# --- 保存输出 ---
+# 建议同时保存为 PDF (用于 LaTeX) 和 PNG (用于 Word/查阅)
+plt.savefig('figure_indoor_scenario.pdf', bbox_inches='tight')
+plt.savefig('figure_indoor_scenario.png', bbox_inches='tight', dpi=300)
+
+print("SCI figures have been generated: figure_indoor_scenario.pdf and .png")
+plt.show()
