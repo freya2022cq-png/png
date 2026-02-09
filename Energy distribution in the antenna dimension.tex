@@ -1,0 +1,99 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
+
+def generate_comparison_plot():
+    # 1. 顶级学术期刊风格配置 (IEEE/Nature standard)
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["Times New Roman", "DejaVu Serif"],
+        "font.size": 8,
+        "axes.labelsize": 9,
+        "axes.titlesize": 10,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+        "mathtext.fontset": "stix",
+        "axes.linewidth": 0.8
+    })
+
+    # 2. 公共数据参数
+    N = 500
+    antenna_index = np.arange(N)
+    depth = np.linspace(0, 10, 30)
+    X, Y = np.meshgrid(antenna_index, depth)
+    mu = 250
+    peak_val = 400.0
+
+    # --- 数据模拟：室内场景 (a) ---
+    sigma_a = 4.0 
+    Z_base_a = 15.0 
+    Z_a = Z_base_a + (peak_val - Z_base_a) * np.exp(-0.5 * ((X - mu) / sigma_a)**2)
+
+    # --- 数据模拟：室外场景 (b) ---
+    sigma_b = 8.0 
+    bg_wave = 20 + 50 * np.exp(-0.5 * ((antenna_index - mu) / 120)**2)
+    Z_base_b = np.tile(bg_wave, (len(depth), 1))
+    noise = np.random.normal(0, 3.0, Z_base_b.shape)
+    Z_b = Z_base_b + (peak_val - Z_base_b) * np.exp(-0.5 * ((X - mu) / sigma_b)**2) + noise
+
+    # 3. 创建画布 (与子带图比例一致)
+    fig = plt.figure(figsize=(10, 4.5), dpi=300)
+
+    # --- 绘制 (a) Indoor Scenario ---
+    ax1 = fig.add_subplot(121, projection='3d')
+    surf1 = ax1.plot_surface(X, Y, Z_a, cmap='viridis', linewidth=0.05, antialiased=True, alpha=0.9, edgecolor='w', rstride=10, cstride=10)
+    ax1.contourf(X, Y, Z_a, zdir='z', offset=0, cmap='viridis', alpha=0.15, levels=20)
+    
+    ax1.set_xlabel('Antenna Index', labelpad=4)
+    ax1.set_ylabel('Dimension', labelpad=4)
+    ax1.set_zlabel('Energy (arb. units)', labelpad=6)
+    ax1.set_title('(a) Indoor Scenario Antenna-Energy', fontweight='bold', pad=3, y=1.02)
+    ax1.set_zlim(0, 450)
+    ax1.view_init(elev=22, azim=-45)
+
+    # --- 绘制 (b) Outdoor Scenario ---
+    ax2 = fig.add_subplot(122, projection='3d')
+    surf2 = ax2.plot_surface(X, Y, Z_b, cmap='viridis', linewidth=0.05, antialiased=True, alpha=0.9, edgecolor='w', rstride=10, cstride=10)
+    ax2.contourf(X, Y, Z_b, zdir='z', offset=0, cmap='viridis', alpha=0.15, levels=20)
+    
+    ax2.set_xlabel('Antenna Index', labelpad=4)
+    ax2.set_ylabel('Dimension', labelpad=4)
+    ax2.set_zlabel('', labelpad=6) 
+    ax2.set_title('(b) Outdoor Scenario Antenna-Energy', fontweight='bold', pad=3, y=1.02)
+    ax2.set_zlim(0, 450)
+    ax2.view_init(elev=22, azim=-45)
+
+    # 4. 统一美化坐标轴与相机距离
+    for ax in [ax1, ax2]:
+        ax.set_xlim(0, 500)
+        ax.set_ylim(0, 10)
+        ax.set_zticks([0, 100, 200, 300, 400])
+        ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+        ax.dist = 10.5
+
+    # 5. 颜色条调整：校正刻度范围以同时标注 a 和 b 图
+    fig.tight_layout()
+    # 调整整体布局，为右侧颜色条留出空间
+    plt.subplots_adjust(right=0.92, bottom=0.15, wspace=0.05, top=0.92)
+    
+    # 精确放置右侧颜色条
+    cbar_ax = fig.add_axes([0.93, 0.32, 0.012, 0.35])
+    
+    # 强制将颜色映射范围固定在 0-450，确保刻度准确反映两图的能量峰值
+    surf1.set_clim(0, 450)
+    
+    cbar = fig.colorbar(surf1, cax=cbar_ax)
+    cbar.set_label('Energy Intensity', fontsize=8, labelpad=8)
+    
+    # 设置与 Z 轴一致的刻度，使得颜色条读数直观对应
+    cbar.set_ticks([0, 100, 200, 300, 400])
+    cbar.ax.tick_params(labelsize=7)
+    cbar.outline.set_linewidth(0.6)
+
+    plt.show()
+
+if __name__ == "__main__":
+    generate_comparison_plot()
