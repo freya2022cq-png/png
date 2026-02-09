@@ -1,0 +1,176 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+def generate_sci_diagram():
+    """
+    SCI 论文高质量架构图生成脚本
+    针对顶级期刊（IEEE/Elsevier/Springer）优化
+    特点：高对比度、Times New Roman 字体、模块信息完整
+    """
+    
+    # --- 1. SCI 论文绘图配置 ---
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.serif": ["Times New Roman"],
+        "mathtext.fontset": "stix",
+        "font.size": 10,  
+        "axes.linewidth": 1.2,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42
+    })
+
+    # 调整画布比例
+    fig = plt.figure(figsize=(11, 9))
+    ax = plt.gca()
+    ax.set_axis_off()
+
+    # 专业学术配色
+    colors = {
+        'encoder_bg': '#F2F4F4',
+        'decoder_bg': '#F2F4F4',
+        'layer_main': '#D6EAF8',   # 浅蓝：代表常规卷积
+        'layer_res': '#D5F5E3',    # 浅绿：代表残差模块
+        'layer_dense': '#FCF3CF',  # 浅黄：代表稠密层
+        'layer_term': '#FFFFFF',   # 纯白：代表端点
+        'border': '#212F3D',       # 深灰：边框线条
+        'line': '#2E4053',         # 主干线条
+        'accent': '#A93226',       # 深红：跳连指示
+        'feedback': '#2E86C1'      # 蓝色：反馈链路
+    }
+
+    # --- 2. 背景容器布局 ---
+    # Encoder Box (UE Side)
+    enc_box = patches.FancyBboxPatch((0.6, 4.0), 3.6, 7.0, boxstyle="round,pad=0.2",
+                                    linewidth=1.2, edgecolor=colors['border'], facecolor=colors['encoder_bg'], 
+                                    linestyle='--', alpha=0.7)
+    ax.add_patch(enc_box)
+    plt.text(0.8, 7.5, 'Encoder (UE)', rotation=90, va='center', fontweight='bold', fontsize=11)
+
+    # Decoder Box (BS Side)
+    dec_box = patches.FancyBboxPatch((5.8, 3.5), 5.2, 11.5, boxstyle="round,pad=0.2",
+                                    linewidth=1.2, edgecolor=colors['border'], facecolor=colors['decoder_bg'], 
+                                    linestyle='--', alpha=0.7)
+    ax.add_patch(dec_box)
+    plt.text(6.0, 9.25, 'Decoder (BS)', rotation=90, va='center', fontweight='bold', fontsize=11)
+
+    # --- 3. 绘图辅助函数 ---
+    def draw_box(x, y, w, h, text, color, zorder=3):
+        rect = patches.Rectangle((x, y), w, h, linewidth=1, edgecolor=colors['border'], facecolor=color, zorder=zorder)
+        ax.add_patch(rect)
+        plt.text(x + w/2, y + h/2, text, ha='center', va='center', fontsize=9, zorder=zorder+1)
+        return x + w/2, y, y + h
+
+    # --- 4. 输入输出终端 ---
+    draw_box(1.7, 11.5, 1.4, 0.6, r"$\mathbf{H}$", colors['layer_term'])
+    plt.text(2.4, 12.4, 'CSI Matrix', ha='center', fontweight='bold', fontsize=10)
+    
+    draw_box(7.7, 15.5, 1.4, 0.6, r"$\hat{\mathbf{V}}$", colors['layer_term'])
+    plt.text(8.4, 16.4, 'Reconstructed CSI', ha='center', fontweight='bold', fontsize=10)
+
+    # --- 5. Encoder 流程 ---
+    w_enc = 1.4
+    enc_layers = [
+        (r'Conv2D: $2, 7\times 7$', 10.2),
+        (r'Conv2D: $8, 5\times 5$', 9.1),
+        (r'Conv2D: $2, 3\times 3$', 8.0),
+        ('Reshape', 6.9),
+        ('Dense', 5.3)
+    ]
+    
+    enc_mid_x = 2.4
+    encoder_exit_y = 5.3
+
+    for i, (name, y) in enumerate(enc_layers):
+        mx, b, t = draw_box(1.7, y, w_enc, 0.6, name, colors['layer_main'] if 'Conv' in name else colors['layer_dense'])
+        prev_y = 11.5 if i == 0 else enc_layers[i-1][1]
+        plt.annotate('', xy=(mx, t), xytext=(mx, prev_y),
+                     arrowprops=dict(arrowstyle='-|>', lw=1, color=colors['line'], mutation_scale=15))
+
+    # --- 6. Decoder 流程 ---
+    dec_mid_x = 8.4
+    y_ptr = 4.0 
+    w_dec = 2.0 # 进一步增加宽度以容纳完整的 "Conv2D: XX, 3x3"
+    layer_centers = []
+
+    # 入口层
+    mx, b, t = draw_box(7.4, y_ptr, w_dec, 0.5, 'Dense', colors['layer_dense'])
+    decoder_entry_pos = (mx, b)
+    layer_centers.append((mx, b, t))
+    y_ptr = t + 0.5
+    mx, b, t = draw_box(7.4, y_ptr, w_dec, 0.5, 'Reshape', colors['layer_dense'])
+    layer_centers.append((mx, b, t))
+    y_ptr = t + 0.6
+    
+    def draw_res_block(x, y, title, conv_name):
+        h_unit, gap = 0.45, 0.25
+        total_h = (h_unit * 2) + gap + 0.5
+        group = patches.Rectangle((x-0.1, y), w_dec + 0.2, total_h, linewidth=0.8, 
+                                 edgecolor='#ABB2B9', facecolor='none', linestyle=':')
+        ax.add_patch(group)
+        draw_box(x, y + 0.25, w_dec, h_unit, conv_name, colors['layer_res'])
+        draw_box(x, y + 0.25 + h_unit + gap, w_dec, h_unit, conv_name, colors['layer_res'])
+        
+        # Skip Connection
+        arc = patches.Arc((x, y + total_h/2), 0.6, total_h*0.8, theta1=90, theta2=270, color=colors['accent'], lw=1.2)
+        ax.add_patch(arc)
+        plt.annotate('', xy=(x, y + total_h - 0.2), xytext=(x, y + 0.2), 
+                     arrowprops=dict(arrowstyle='->', color=colors['accent'], lw=1.2))
+        
+        plt.text(x + w_dec + 0.1, y + total_h/2, title, rotation=270, va='center', fontsize=8, color='#515A5A', fontweight='bold')
+        return x + w_dec/2, y, y + total_h
+
+    # 深度堆叠层 (补全所有通道数信息)
+    bx, by, ty = draw_res_block(7.4, y_ptr, 'ResBlock 1', r'Conv2D: $2, 3\times 3$')
+    layer_centers.append((bx, by, ty))
+    y_ptr = ty + 0.5
+    mx, b, t = draw_box(7.4, y_ptr, w_dec, 0.5, r'Conv2D: $8, 3\times 3$', colors['layer_main'])
+    layer_centers.append((mx, b, t))
+    y_ptr = t + 0.5
+    
+    bx, by, ty = draw_res_block(7.4, y_ptr, 'ResBlock 2', r'Conv2D: $8, 3\times 3$')
+    layer_centers.append((bx, by, ty))
+    y_ptr = ty + 0.5
+    mx, b, t = draw_box(7.4, y_ptr, w_dec, 0.5, r'Conv2D: $16, 3\times 3$', colors['layer_main'])
+    layer_centers.append((mx, b, t))
+    y_ptr = t + 0.5
+    
+    bx, by, ty = draw_res_block(7.4, y_ptr, 'ResBlock 3', r'Conv2D: $16, 3\times 3$')
+    layer_centers.append((bx, by, ty))
+    y_ptr = ty + 0.5
+    
+    # 最终重建层
+    mx, b, t = draw_box(7.4, y_ptr, w_dec, 0.5, r'Conv2D: $2, 3\times 3$', colors['layer_main'])
+    layer_centers.append((mx, b, t))
+    
+    # 主干连线
+    for i in range(len(layer_centers) - 1):
+        plt.annotate('', xy=(dec_mid_x, layer_centers[i+1][1]), xytext=(dec_mid_x, layer_centers[i][2]),
+                     arrowprops=dict(arrowstyle='-|>', lw=1, color=colors['line'], mutation_scale=12))
+
+    # 输出箭头 (指向 15.5 位置)
+    plt.annotate('', xy=(dec_mid_x, 15.5), xytext=(dec_mid_x, layer_centers[-1][2]),
+                 arrowprops=dict(arrowstyle='-|>', lw=1.2, color=colors['line'], mutation_scale=15))
+
+    # --- 7. 反馈链路 ---
+    fb_y = 2.4 
+    
+    plt.plot([enc_mid_x, enc_mid_x], [encoder_exit_y, fb_y], color=colors['feedback'], lw=1.5, linestyle='-', alpha=0.8)
+    plt.plot([enc_mid_x, dec_mid_x], [fb_y, fb_y], color=colors['feedback'], lw=1.5, linestyle='-', alpha=0.8)
+    plt.annotate('', xy=(dec_mid_x, decoder_entry_pos[1]), xytext=(dec_mid_x, fb_y),
+                 arrowprops=dict(arrowstyle='-|>', color=colors['feedback'], lw=1.5, mutation_scale=15))
+    
+    plt.text((enc_mid_x + dec_mid_x)/2, fb_y - 0.45, 'Limited Feedback Channel', 
+             ha='center', fontweight='bold', color=colors['feedback'], fontsize=9,
+             bbox=dict(facecolor='white', edgecolor=colors['feedback'], boxstyle='round,pad=0.2', alpha=0.9))
+
+    # --- 8. 最终画布修整 ---
+    plt.xlim(0, 12)
+    plt.ylim(1, 17.5) 
+    
+    # 导出设置
+    output_filename = "sci_csi_net_v4_complete.pdf"
+    plt.savefig(output_filename, bbox_inches='tight', transparent=False, dpi=600)
+    plt.show()
+
+if __name__ == "__main__":
+    generate_sci_diagram()
